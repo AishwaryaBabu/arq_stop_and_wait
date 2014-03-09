@@ -12,39 +12,69 @@ int main(int argc, char* argv[])
     int packetSize = 1500;
     int hdrSize = 100;
     int payloadSize = packetSize - hdrSize;    
+    //    payloadSize = 10;
     int numPackets = 0;
     char* inputstream;
     inputstream = new char[payloadSize];
 
     /* Read file into packets */
-    string inputFilename("text2.dat"); 
+    string inputFilename(argv[4]); 
     fstream inputFile;
     inputFile.open(inputFilename.c_str(), fstream::in);
 
-    //    while((inputFile.read(inputstream, payloadSize)).good())
+    inputFile.seekg(0, inputFile.end);
+    int sizeOfFile = inputFile.tellg();
+    inputFile.seekg(0, inputFile.beg);
     while(true)
     {
+        int tempSize = sizeOfFile - inputFile.tellp();
 
-        inputFile.read(inputstream, payloadSize);
-//               cout<<inputstream;
+        if(tempSize < payloadSize)   /*For the last packet*/
+        {
+            //            cout<<sizeOfFile<<" "<<inputFile.tellp()<<" "<<tempSize<<endl;
+            char* tempstream;
+            tempstream = new char[tempSize];
+            inputFile.read(tempstream, tempSize);
+            int packetS = tempSize + hdrSize;
+            myPackets.push_back(new Packet(packetS));
+            myPackets.back()->fillPayload(tempSize, tempstream);
+            cout<<tempstream<<endl;
 
-        myPackets.push_back(new Packet(packetSize));
-        myPackets.back()->fillPayload(payloadSize, inputstream); //Last pushed packet
+            PacketHdr* hdr = myPackets.back()->accessHeader();    
+            hdr->setHeaderSize(hdrSize);
+            hdr->setOctet('D', 0); 
+            hdr->setOctet('A',1);
+            hdr->setOctet('T',2);
+            hdr->setIntegerInfo(numPackets, 3);
+            hdr->setIntegerInfo(tempSize, 7);
+            numPackets++;
+            delete[] tempstream;
 
-        PacketHdr* hdr = myPackets.back()->accessHeader();    
-        //        hdr->setHeaderSize(hdrSize);
-        hdr->setOctet('D', 0); 
-        hdr->setOctet('A',1);
-        hdr->setOctet('T',2);
-        hdr->setIntegerInfo(numPackets, 3);
-        numPackets++;
+            break;
+        }
+
+        else
+        {
+            inputFile.read(inputstream, payloadSize);
+
+            myPackets.push_back(new Packet(packetSize));
+            myPackets.back()->fillPayload(payloadSize, inputstream); //Last pushed packet
+
+            PacketHdr* hdr = myPackets.back()->accessHeader();    
+                    hdr->setHeaderSize(hdrSize);
+            hdr->setOctet('D', 0); 
+            hdr->setOctet('A',1);
+            hdr->setOctet('T',2);
+            hdr->setIntegerInfo(numPackets, 3);
+            hdr->setIntegerInfo(payloadSize, 7);
+            numPackets++;
+        }
 
         if(inputFile.eof())
             break;
 
     }
     delete[] inputstream;
-//    cout<<numPackets<<endl;
 
     try {
 
@@ -60,7 +90,7 @@ int main(int argc, char* argv[])
 
         //configure receiving port to listen to ACK frames
         Address * my_rx_addr = new Address(hname, (short)(atoi(argv[3])));
-        LossyReceivingPort *my_rx_port = new LossyReceivingPort(0.2);
+        LossyReceivingPort *my_rx_port = new LossyReceivingPort(0.0);
         my_rx_port->setAddress(my_rx_addr);
         my_rx_port->init();
 
@@ -72,7 +102,7 @@ int main(int argc, char* argv[])
         hdr->setOctet('I',1);
         hdr->setOctet('G',2);
         hdr->setIntegerInfo(numPackets, 3);
-        hdr->setIntegerInfo(payloadSize, 4);        
+        hdr->setIntegerInfo(payloadSize, 7);
 
         my_port->sendPacket(my_packet);
         cout<<"Signaling Packet sent"<<endl;
@@ -98,12 +128,13 @@ int main(int argc, char* argv[])
             //sending it
             my_port->sendPacket(my_packet);
             my_port->lastPkt_ = my_packet; 
-//            cout << "packet is first sent!" <<endl;
+            //            cout << "packet is first sent!" <<endl;
+
             my_port->setACKflag(false);
             //schedule retransmit
             my_port->timer_.startTimer(2.5);  
 
-//            cout << "begin waiting for ACK..." <<endl;
+            //            cout << "begin waiting for ACK..." <<endl;
             Packet *pAck;
             pAck = new Packet();
             while (!my_port->isACKed()){
@@ -117,7 +148,9 @@ int main(int argc, char* argv[])
                 }
             };
             delete[] pAck; 
-        } 
+        }   
+
+        delete[] my_packet;
 
 
     } catch (const char *reason ) {
