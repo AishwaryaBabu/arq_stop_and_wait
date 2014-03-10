@@ -16,7 +16,7 @@ public:
        cout << "The last sent packet has not been acknowledged yet. Re-send..." <<endl; 
        sendPacket(lastPkt_);       
        //schedule a timer again
-       timer_.startTimer(2.5);
+       timer_.startTimer(2);
       }              
   }  
 private:
