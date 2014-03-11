@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include<unistd.h>
 using namespace std;
 
 //================================================================
@@ -132,7 +133,9 @@ int Packet::makePacket( char *streambuf )
  */
 void Packet::extractHeader( char *streambuf )
 {
-  char* p= streambuf; 
+
+//EDIT
+  unsigned char* p= (unsigned char*)streambuf; 
   int a  = *(p++);
   header_->setHeaderSize(a);
   memcpy( header_->accessInfo(), p ,a);   
@@ -504,7 +507,7 @@ Packet* ReceivingPort::receivePacket()
  *  Constructor with parameter (drop probability p)
  *  Using a fixed link delay: 1 second 
  */
-LossyReceivingPort::LossyReceivingPort(float lossyratio): ReceivingPort(), loss_ratio_(lossyratio),secdelay_(1)
+LossyReceivingPort::LossyReceivingPort(float lossyratio): ReceivingPort(), loss_ratio_(lossyratio),secdelay_(100)
 {
 }
 
@@ -515,7 +518,8 @@ Packet* LossyReceivingPort::receivePacket()
 {   
   Packet *p = ReceivingPort::receivePacket();
   //simulate some delay
-  sleep(secdelay_); //delay
+  //sleep(secdelay_); //delay
+  usleep(1000*secdelay_);
   float  x;
   // Set evil seed (initial seed)
   srand( (unsigned)time( NULL ) );

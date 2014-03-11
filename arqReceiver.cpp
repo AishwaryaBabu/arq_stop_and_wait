@@ -69,7 +69,7 @@ int main(int argc, const char * argv[])
                     //Last packet processing
                     if(packetCounter == expectedNumPackets-1)
                     {
-                        cout << "receiving a packet of seq num " << packetCounter << "...sending ACK" << endl; 
+                        cout << "receiving a packet of seq num " << (prevSeq+1)%2 << "...sending ACK" << endl; 
                         hdr->setIntegerInfo(packetCounter,3);
                         my_tx_port->sendPacket(my_ack_packet); 
 
@@ -78,7 +78,7 @@ int main(int argc, const char * argv[])
                         {
 
                             int paySize = p->getPayloadSize();
-                            cout<<paySize<<endl;
+//                            cout<<paySize<<endl;
                             char* tempstream;
                             tempstream = p->getPayload();
 
