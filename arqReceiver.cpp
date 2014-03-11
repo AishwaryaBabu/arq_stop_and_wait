@@ -63,6 +63,11 @@ int main(int argc, const char * argv[])
                     my_tx_port->sendPacket(my_ack_packet); 
                 }
 
+                else if(p->accessHeader()->getOctet(0) == 'E')
+                {
+                    exit(-1);
+                }
+
                 //Data packets processing
                 else
                 {
@@ -70,7 +75,7 @@ int main(int argc, const char * argv[])
                     if(packetCounter == expectedNumPackets-1)
                     {
                         cout << "receiving a packet of seq num " << (prevSeq+1)%2 << "...sending ACK" << endl; 
-                        hdr->setIntegerInfo(packetCounter,3);
+                        hdr->setIntegerInfo((prevSeq+1)%2,3);
                         my_tx_port->sendPacket(my_ack_packet); 
 
                         //if(p->accessHeader()->getIntegerInfo(3) == packetCounter)
@@ -86,10 +91,6 @@ int main(int argc, const char * argv[])
                             {
                                 outputFile << tempstream[i]; 
                             }
-                            //                            my_tx_port->sendPacket(my_ack_packet); 
-                            //                            my_tx_port->sendPacket(my_ack_packet); 
-                            //                            my_tx_port->sendPacket(my_ack_packet); 
-
                             packetCounter = 0;
                             outputFile.close();
 

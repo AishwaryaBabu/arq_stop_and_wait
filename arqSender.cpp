@@ -167,6 +167,16 @@ int main(int argc, char* argv[])
 
         delete[] my_packet;
 
+        Packet* end_packet;
+        end_packet = new Packet();
+        PacketHdr* hdrLast = end_packet->accessHeader(); 
+        hdrLast->setOctet('E', 0);
+        hdrLast->setOctet('N', 1);
+        hdrLast->setOctet('D', 2);
+        hdrLast->setIntegerInfo(2, 3);
+        my_port->sendPacket(end_packet);
+        delete[] end_packet;
+
 
     } catch (const char *reason ) {
         cerr << "Exception:" << reason << endl;
