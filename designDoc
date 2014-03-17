@@ -1,0 +1,72 @@
+Name: Aishwarya Babu
+RUID: 150003355
+
+
+RUNNING INSTRUCTIONS:
+
+$ make
+$ ./forwardingElement
+$ ./arqReceiver 4001 localhost 10000 outputText.dat
+$ ./arqSender localhost 4001 11000 text2.dat
+
+
+EDITS TO PACKAGE PROVIDED:
+1. Makefile: changed -lpthread to -pthread as required for ubuntu gcc compiler
+2. common.cpp: In function void extractHeader(char* streambuf), changed:
+   char* p = streambuf; to unsigned char* p = (unsigned char*)streambuf;
+    This was causing segmentation fault around the 30th packet since on th following line int a = *(p++); a was being assigned a negative valuecausing further issues when this function was called.
+
+3. In LossyReceivingPort::receivePacket() changed:
+    sleep(secdelay_); to usleep(1000*secdelay_); and secdelay_(100) 
+4. In newport.h changed the argument of startTimer to 2. 
+
+
+PROTOCOL DESCRIPTION:
+
+Two nodes arqSender and arqReceiver communicate with each other via a forwarding element. The communication is done via the stop and wait arq scheme.
+
+Stop and Wait ARQ using sequence numbers 0 and 1 alternately.
+The first/ signaling packet is assigned a sequence number 1.
+The data packets that follow are sequenced 0 and 1 alternately. 
+
+The maximum packet size = 1500
+Header size = 50
+Payload size = 1450
+
+Signaling packet:
+Header:
+First three octets are 'S', 'I', 'G'.
+The next 4 octets carry an integer value indicating the number of packets in the file that is to be sent.
+Payload: is the name of the file being sent.
+
+Data packet:
+Header:
+First three octets are 'D', 'A', 'T'.
+The next 4 octets(starting at position 3) carry an integer value indicating the sequence number of the packet i.e. either 0 or 1.
+The next 4 octets(starting at position 7) carry an integer value indicating the size of the payload of that packet.
+Payload: is a chunk of the input file.
+
+Acknowledgement packet:
+Header:
+First three octets are 'A', 'C', 'K'.
+The next 4 octets(starting at position 3) carry an integer value indicating the sequence number of the packet being acknowledged i.e. either 0 or 1.
+
+Ports:
+arqSender           - 4000 receiving port
+                    - 3000 transmitting port
+arqReceiver         - 4001 receiving port
+                    - 3005 transmitting port
+forwardingElement   - 11001 transmitting port on arqSender side
+                    - 11000 receiving port on arqSender side
+                    - 10001 transmitting port on arqReceiver side
+                    - 10000 transmitting port on arqReceiver side
+
+PERFORMANCE RESULTS:
+Successfully transmits and receives all packets.
+
+diff text2.dat outputText.dat 
+This returns that there is not difference in the two files.
+
+The link has a sleep of 100 ms, which if were lossless would see a speed of maximum 10 packets a second. 
+Prints the alternately acknowledged packets on both sender and receiver side
+Exits program after file has been fully sent and fully received
