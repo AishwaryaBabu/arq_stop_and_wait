@@ -27,7 +27,7 @@ void* nodeRecProc(void* arg)
     return NULL;
 }
 
-void startNode1Thread()
+void startNode1Thread(pthread_t* thread)
 {
 
    //setup port numbers for Node1  
@@ -64,12 +64,12 @@ void startNode1Thread()
     sh->fwdRecvPort = recvPort;
     sh->fwdSendPort = sendPort;
     //    sh->max = n;
-    pthread_t thread;
-    pthread_create(&(thread), 0, &nodeRecProc, sh);
+//    pthread_t thread;
+    pthread_create(thread, 0, &nodeRecProc, sh);
 //    pthread_join(thread, NULL);
 }
 
-void startNode2Thread()
+void startNode2Thread(pthread_t* thread)
 {
 
     //setup port numbers for Node2
@@ -107,9 +107,9 @@ void startNode2Thread()
     sh->fwdRecvPort = recvPort;
     sh->fwdSendPort = sendPort;
     //    sh->max = n;
-    pthread_t thread;
-    pthread_create(&(thread), 0, &nodeRecProc, sh);
-    pthread_join(thread, NULL);
+//    pthread_t thread;
+    pthread_create(thread, 0, &nodeRecProc, sh);
+//    pthread_join(thread, NULL);
 }
 
 
@@ -119,8 +119,12 @@ int main(int argc, char* argv[])
     //sender 4000
     //receiver localhost 4001 
 
-    startNode1Thread();
-    startNode2Thread();
+    pthread_t thread1, thread2;
+    startNode1Thread(&thread1);
+    startNode2Thread(&thread2);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
     //void startReceiverThread()
 
     return 0;
