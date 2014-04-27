@@ -3,6 +3,9 @@
 #include"newport.h"
 #include<vector>
 #include<list>
+
+#define rtTimeToExpire 100
+#define prtTimeToExpire 100
 using namespace std;
 
 
@@ -15,6 +18,7 @@ static vector<vector<int> >routingTable;
 static vector<vector<int> >pendingRequestTable;
 
 struct cShared{
+    short receivingPortNum;
     LossyReceivingPort* fwdRecvPort;
     mySendingPort* fwdSendPort;
     //  int max;
@@ -63,6 +67,16 @@ void CreateConnectionsList(int argc, char* argv[])
     }
 }
 
+int SearchConnectionsTable(int receivingPortNum)
+{
+    for(unsigned int i = 0; i < connectionsList.size(); i++)
+    {
+        if(receivingPortNum == connectionsList[i][0])
+            return connectionsList[i][1];
+    }
+    return -1;
+}
+
 void AddRoutingTableEntry(int contentId, int dstPortNum, int numHops)
 {
     //Using config information build routing table
@@ -72,33 +86,33 @@ void AddRoutingTableEntry(int contentId, int dstPortNum, int numHops)
         routingRow.push_back(contentId);
         routingRow.push_back(dstPortNum);
         routingRow.push_back(numHops);
-        routingRow.push_back(100);      //Time to expire
+        routingRow.push_back(rtTimeToExpire);      //Time to expire
         routingTable.push_back(routingRow);
     }
     else
     {
-        bool ContentExist=false;
+        bool contentExists=false;
         for(unsigned int i = 0; i < routingTable.size(); i++)
         {
             if(routingTable[i][0]==contentId)
             {
-                ContentExist=true;
+                contentExists=true;
                 if(numHops < routingTable[i][2])
                 {
                     routingTable[i][1]=dstPortNum;
                     routingTable[i][2]=numHops;
-                    routingTable[i][3]=100;      //Time to expire;
+                    routingTable[i][3]=rtTimeToExpire;      //Time to expire;
                 }
                 break;
             }
         }
-        if(!ContentExist)
+        if(!contentExists)
         {
             vector<int> routingRow;
             routingRow.push_back(contentId);
             routingRow.push_back(dstPortNum);
             routingRow.push_back(numHops);
-            routingRow.push_back(100);//Time to leave;
+            routingRow.push_back(rtTimeToExpire);//Time to expire;
             routingTable.push_back(routingRow);
         }
     }
@@ -117,10 +131,38 @@ void DeleteRoutingTableEntry(int contentId)
     }
 }
 
-static void UpdatePendingRequestTable()
+int SearchRoutingTable(int requestedContentId)
 {
-    //To be monitored by main program
+    for(unsigned int i = 0; i < routingTable.size(); i++)
+    {
+        if(requestedContentId == routingTable[i][0])
+        {
+            return routingTable[i][1]; //Returns destination port number   
+        }
+    }
+    return -1;
 
+}
+void UpdatePendingRequestTable(int requestedContentId, int requestingHostId, int receivingPort)
+{
+    vector<int> pendingRequestRow;
+    pendingRequestRow.push_back(requestedContentId);
+    pendingRequestRow.push_back(requestingHostId);
+    pendingRequestRow.push_back(receivingPort);
+    pendingRequestRow.push_back(prtTimeToExpire); // Time to expire
+
+    pendingRequestTable.push_back(pendingRequestRow);
+}
+
+int SearchPendingRequestTable(int contentId, int hostId)
+{
+    for(unsigned int i = 0; i < pendingRequestTable.size(); i++)
+    {
+        vector<int> currentEntry = pendingRequestTable[i];
+        if(contentId==currentEntry[0] && hostId==currentEntry[1])
+            return currentEntry[2];
+    }
+    return -1;
 }
 
 void* NodeRecProc(void* arg)
@@ -143,14 +185,39 @@ void* NodeRecProc(void* arg)
             //Request Packet
             if(recvPacket->accessHeader()->getOctet(0) == '0')
             {
-                //Look up routing table based on content id
+                int requestedContentId = recvPacket->accessHeader()->getOctet(1);
+                int requestingHostId = recvPacket->accessHeader()->getOctet(2); 
+                int receivingPortNum = sh->receivingPortNum;
 
+                //Look up routing table based on content id and Forward to appropriate next hop
+                int nextHopPortNum = SearchRoutingTable(requestedContentId);
+                Address* dstAddr = new Address("localhost", nextHopPortNum);
+                sh->fwdSendPort->setRemoteAddress(dstAddr);
+                sh->fwdSendPort->sendPacket(recvPacket);
+                delete(dstAddr);
 
                 //Make entry in pending request table                 
+                UpdatePendingRequestTable(requestedContentId, requestingHostId, receivingPortNum); //change receivingPort to destination port
             }
             //Response Packet
             else if(recvPacket->accessHeader()->getOctet(0) == '1')
             {
+                int requestedContentId = recvPacket->accessHeader()->getOctet(1);
+                int requestingHostId = recvPacket->accessHeader()->getOctet(2); 
+                int receivingPortNum = SearchPendingRequestTable(requestedContentId, requestingHostId);
+                //Search for appropriate destination address in connections table
+                if(receivingPortNum > 0)
+                {
+                    int dstPortNum = SearchConnectionsTable(receivingPortNum);
+                    if(dstPortNum > 0)
+                    {
+                        Address* dstAddr = new Address("localhost", dstPortNum);
+                        sh->fwdSendPort->setRemoteAddress(dstAddr);
+                        sh->fwdSendPort->sendPacket(recvPacket);
+                        delete(dstAddr);
+                    }
+                }
+
             }
             //Announcement
             else if(recvPacket->accessHeader()->getOctet(0) == '2')
