@@ -10,9 +10,9 @@ using namespace std;
 //Connections table - 2D vector mapping destination address to sending port+"receiving port"(interface)//For broadcast
 //Pending request table - Requested id + host id + receiving port(interface) + time to expire
 
-vector<vector<int> >connectionsList;
-vector<vector<int> >routingTable;
-vector<vector<int> >pendingRequestTable;
+static vector<vector<int> >connectionsList;
+static vector<vector<int> >routingTable;
+static vector<vector<int> >pendingRequestTable;
 
 struct cShared{
     LossyReceivingPort* fwdRecvPort;
@@ -20,10 +20,10 @@ struct cShared{
     //  int max;
 };
 
-static void CreateConnectionsList(int argc, char* argv[])
+void CreateConnectionsList(int argc, char* argv[])
 {
     //Implement formula and build table using config details
-    int numberofPorts = argc-1;
+    int numberofPorts = argc-2;
     string source(argv[1]);
     int sourceID;
     if(source.at(0)=='r'){
@@ -63,12 +63,61 @@ static void CreateConnectionsList(int argc, char* argv[])
     }
 }
 
-static void CreateRoutingTable()
+void AddRoutingTableEntry(int contentId, int dstPortNum, int numHops)
 {
     //Using config information build routing table
+    if(routingTable.size()==0)
+    {
+        vector<int> routingRow;
+        routingRow.push_back(contentId);
+        routingRow.push_back(dstPortNum);
+        routingRow.push_back(numHops);
+        routingRow.push_back(100);      //Time to expire
+        routingTable.push_back(routingRow);
+    }
+    else
+    {
+        bool ContentExist=false;
+        for(unsigned int i = 0; i < routingTable.size(); i++)
+        {
+            if(routingTable[i][0]==contentId)
+            {
+                ContentExist=true;
+                if(numHops < routingTable[i][2])
+                {
+                    routingTable[i][1]=dstPortNum;
+                    routingTable[i][2]=numHops;
+                    routingTable[i][3]=100;      //Time to expire;
+                }
+                break;
+            }
+        }
+        if(!ContentExist)
+        {
+            vector<int> routingRow;
+            routingRow.push_back(contentId);
+            routingRow.push_back(dstPortNum);
+            routingRow.push_back(numHops);
+            routingRow.push_back(100);//Time to leave;
+            routingTable.push_back(routingRow);
+        }
+    }
+
 }
 
-static void CreatePendingRequestTable()
+void DeleteRoutingTableEntry(int contentId)
+{
+    for(unsigned int i = 0; i < routingTable.size(); i++)
+    {
+        if(routingTable[i][0]==contentId)
+        {
+            routingTable.erase(routingTable.begin()+i);
+            break;
+        }
+    }
+}
+
+static void UpdatePendingRequestTable()
 {
     //To be monitored by main program
 
@@ -161,6 +210,7 @@ int main(int argc, char* argv[])
     //sender 4000
     //receiver localhost 4001 
 
+    CreateConnectionsList(argc, argv);
 
     int N = 2;
 
