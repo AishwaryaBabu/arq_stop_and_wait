@@ -20,9 +20,47 @@ struct cShared{
     //  int max;
 };
 
-static void CreateConnectionsList()
+static void CreateConnectionsList(int argc, char* argv[])
 {
     //Implement formula and build table using config details
+    int numberofPorts = argc-1;
+    string source(argv[1]);
+    int sourceID;
+    if(source.at(0)=='r'){
+        sourceID=atoi(source.substr(1).c_str())-1;
+    }
+    else if(source.at(0)=='h'){
+        sourceID=atoi(source.substr(1).c_str())+63;
+    }
+    for(int i=0;i<numberofPorts;i++)
+    {
+        vector<int> ports;
+        string destination(argv[i+2]);
+        int destinationID;
+        if(destination.at(0)=='r'){
+            destinationID=atoi(destination.substr(1).c_str())-1;
+        }
+        else if(source.at(0)=='h'){
+            destinationID=atoi(destination.substr(1).c_str())+63;
+        }
+        int x,y,zSource,zDestination;
+        if(sourceID<destinationID){
+            x=sourceID;
+            y=destinationID;
+            zSource=0;
+            zDestination=1;
+        }
+        else{
+            y=sourceID;
+            x=destinationID;
+            zSource=2;
+            zDestination=3;
+        }
+        int DestinationAddr = x*(512)+y*(4)+zDestination+8000;
+        ports.push_back(i+1);
+        ports.push_back(DestinationAddr);
+        connectionsList.push_back(ports);
+    }
 }
 
 static void CreateRoutingTable()
@@ -48,16 +86,16 @@ void* NodeRecProc(void* arg)
         recvPacket = sh->fwdRecvPort->receivePacket();
         if(recvPacket != NULL)
         {
-//          int dstPortNum = Look up the appopriate table to send the packet
-//             Address* dstAddr = new Address("localhost", dstPortNum);
-//            sh->fwdSendPort->setRemoteAddress(dstAddr);
+            //          int dstPortNum = Look up the appopriate table to send the packet
+            //             Address* dstAddr = new Address("localhost", dstPortNum);
+            //            sh->fwdSendPort->setRemoteAddress(dstAddr);
             sh->fwdSendPort->sendPacket(recvPacket);
 
             //Request Packet
             if(recvPacket->accessHeader()->getOctet(0) == '0')
             {
                 //Look up routing table based on content id
-                
+
 
                 //Make entry in pending request table                 
             }
@@ -68,7 +106,7 @@ void* NodeRecProc(void* arg)
             //Announcement
             else if(recvPacket->accessHeader()->getOctet(0) == '2')
             {
-        
+
             }
         }
     }
@@ -125,11 +163,11 @@ int main(int argc, char* argv[])
 
 
     int N = 2;
- 
+
     pthread_t threads[N];
 
     vector<int> ports;
-    
+
     ports.push_back(10000);
     ports.push_back(11001);
     ports.push_back(4000);
@@ -137,12 +175,12 @@ int main(int argc, char* argv[])
     connectionsList.push_back(ports);
 
     ports[0] = 11000;
-   ports[1] = 10001 ;
-   ports[2] = 4001;
+    ports[1] = 10001 ;
+    ports[2] = 4001;
 
     connectionsList.push_back(ports);
 
-   for(int i = 0; i < N; i++)
+    for(int i = 0; i < N; i++)
     {
         StartNodeThread(&(threads[i]), connectionsList[i]);
     }
