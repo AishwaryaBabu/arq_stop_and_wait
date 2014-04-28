@@ -226,11 +226,10 @@ void* NodeRecProc(void* arg)
             }
         }
     }
-    cout<<"here"<<endl;
-    return NULL;
+        return NULL;
 }
 
-void StartNodeThread(pthread_t* thread, vector<int> ports)
+void StartNodeThread(pthread_t* thread, vector<int>& ports)
 {
 
     //setup ports numbers
@@ -243,8 +242,9 @@ void StartNodeThread(pthread_t* thread, vector<int> ports)
     try{
         recvAddr = new Address("localhost", ports[0]);
         sendAddr = new Address("localhost", ports[1]);
-        dstAddr =  new Address("localhost", ports[2]); //NEEDS TO GO
+        dstAddr =  new Address("localhost", ports[2]); //NEEDS TO GO and edit common.cpp line 380 to get rid of assertion
 
+        
         recvPort = new LossyReceivingPort(0.0);
         recvPort->setAddress(recvAddr);
 
@@ -277,7 +277,7 @@ int main(int argc, char* argv[])
     //sender 4000
     //receiver localhost 4001 
 
-    CreateConnectionsList(argc, argv);
+    //CreateConnectionsList(argc, argv);
 
     int N = 2;
 
@@ -291,6 +291,12 @@ int main(int argc, char* argv[])
 
     connectionsList.push_back(ports);
 
+    cout<<connectionsList[0].size()<<endl;
+
+     for(int i = 0; i < connectionsList[0].size(); i++)
+        cout<<connectionsList[0][i]<<endl;
+  
+
     ports[0] = 11000;
     ports[1] = 10001 ;
     ports[2] = 4001;
@@ -303,8 +309,8 @@ int main(int argc, char* argv[])
     }
 
 
+    pthread_join(threads[0], NULL);
     pthread_join(threads[1], NULL);
-    pthread_join(threads[2], NULL);
     //void startReceiverThread()
 
     return 0;
