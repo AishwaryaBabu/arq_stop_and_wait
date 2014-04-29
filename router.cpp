@@ -137,7 +137,7 @@ int SearchRoutingTable(int requestedContentId)
     {
         if(requestedContentId == routingTable[i][0])
         {
-            return routingTable[i][1]; //Returns destination port number   
+            return routingTable[i][1]; //Returns receiving port number   
         }
     }
     return -1;
@@ -191,6 +191,7 @@ void* NodeRecProc(void* arg)
 
                 //Look up routing table based on content id and Forward to appropriate next hop
                 int nextHopPortNum = SearchRoutingTable(requestedContentId);
+//                int nextHopDestPortNum = SearchConnectionsTable(nextHopRecvPortNum);
                 Address* dstAddr = new Address("localhost", nextHopPortNum);
                 sh->fwdSendPort->setRemoteAddress(dstAddr);
                 sh->fwdSendPort->sendPacket(recvPacket);
@@ -222,7 +223,26 @@ void* NodeRecProc(void* arg)
             //Announcement
             else if(recvPacket->accessHeader()->getOctet(0) == '2')
             {
+                int receivedContentId = int(recvPacket->accessHeader()->getOctet(1));
+                int receivingPortNum = int(sh->receivingPortNum);
+                int numHops = int(recvPacket->accessHeader()->getOctet(2));
+                
+                AddRoutingTableEntry(receivedContentId, receivingPortNum, numHops); //Takes care of updating timer and comparing num Hops
 
+
+                //Increment number of hops
+                numHops++;
+                recvPacket->accessHeader()->setOctet(char(numHops), 2);
+
+                //Forward to all other ports
+                int destPortNumToSkip = SearchConnectionsTable(receivingPortNum);
+                //BroadcastPacket(destPortNumToSkip, recvPacket);
+                for(int i = 0; i < routingTable.size(); i++)
+                {
+                    int destPort = routingTable[i][1];
+                    if(destPortNumToSkip != destPort)
+                        sh->fwdSendPort->sendPacket(recvPacket);
+                }
             }
         }
     }
@@ -293,7 +313,7 @@ int main(int argc, char* argv[])
 
     cout<<connectionsList[0].size()<<endl;
 
-     for(int i = 0; i < connectionsList[0].size(); i++)
+     for(unsigned int i = 0; i < connectionsList[0].size(); i++)
         cout<<connectionsList[0][i]<<endl;
   
 
