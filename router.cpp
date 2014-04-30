@@ -24,6 +24,16 @@ struct cShared{
     //  int max;
 };
 
+void Display2DVector(vector<vector<int> > nameOfVector)
+{
+    for(unsigned int i = 0; i < nameOfVector.size(); i++)
+    {
+        for(unsigned int j = 0; j < nameOfVector[0].size(); j++)
+            cout<<nameOfVector[i][j]<<" ";  
+        cout<<endl;
+    }  
+}
+
 void CreateConnectionsList(int argc, char* argv[])
 {
     //Implement formula and build table using config details
@@ -60,11 +70,14 @@ void CreateConnectionsList(int argc, char* argv[])
             zSource=2;
             zDestination=3;
         }
-        int DestinationAddr = x*(512)+y*(4)+zDestination+8000;
-        ports.push_back(i+1);
-        ports.push_back(DestinationAddr);
+        int destinationPortNum = x*(512)+y*(4)+zDestination+8000;
+        int receivingPortNum = x*(512)+y*(4)+zSource+8000;
+        ports.push_back(receivingPortNum);
+        ports.push_back(destinationPortNum);
         connectionsList.push_back(ports);
     }
+
+    Display2DVector(connectionsList);
 }
 
 int SearchConnectionsTable(int receivingPortNum)
@@ -185,13 +198,13 @@ void* NodeRecProc(void* arg)
             //Request Packet
             if(recvPacket->accessHeader()->getOctet(0) == '0')
             {
-                int requestedContentId = recvPacket->accessHeader()->getOctet(1);
-                int requestingHostId = recvPacket->accessHeader()->getOctet(2); 
+                int requestedContentId = int(recvPacket->accessHeader()->getOctet(1));
+                int requestingHostId = int(recvPacket->accessHeader()->getOctet(2)); 
                 int receivingPortNum = sh->receivingPortNum;
 
                 //Look up routing table based on content id and Forward to appropriate next hop
                 int nextHopPortNum = SearchRoutingTable(requestedContentId);
-//                int nextHopDestPortNum = SearchConnectionsTable(nextHopRecvPortNum);
+                //                int nextHopDestPortNum = SearchConnectionsTable(nextHopRecvPortNum);
                 Address* dstAddr = new Address("localhost", nextHopPortNum);
                 sh->fwdSendPort->setRemoteAddress(dstAddr);
                 sh->fwdSendPort->sendPacket(recvPacket);
@@ -203,8 +216,8 @@ void* NodeRecProc(void* arg)
             //Response Packet
             else if(recvPacket->accessHeader()->getOctet(0) == '1')
             {
-                int requestedContentId = recvPacket->accessHeader()->getOctet(1);
-                int requestingHostId = recvPacket->accessHeader()->getOctet(2); 
+                int requestedContentId = int(recvPacket->accessHeader()->getOctet(1));
+                int requestingHostId = int(recvPacket->accessHeader()->getOctet(2)); 
                 int receivingPortNum = SearchPendingRequestTable(requestedContentId, requestingHostId);
                 //Search for appropriate destination address in connections table
                 if(receivingPortNum > 0)
@@ -224,9 +237,9 @@ void* NodeRecProc(void* arg)
             else if(recvPacket->accessHeader()->getOctet(0) == '2')
             {
                 int receivedContentId = int(recvPacket->accessHeader()->getOctet(1));
-                int receivingPortNum = int(sh->receivingPortNum);
+                int receivingPortNum = sh->receivingPortNum;
                 int numHops = int(recvPacket->accessHeader()->getOctet(2));
-                
+
                 AddRoutingTableEntry(receivedContentId, receivingPortNum, numHops); //Takes care of updating timer and comparing num Hops
 
 
@@ -237,7 +250,7 @@ void* NodeRecProc(void* arg)
                 //Forward to all other ports
                 int destPortNumToSkip = SearchConnectionsTable(receivingPortNum);
                 //BroadcastPacket(destPortNumToSkip, recvPacket);
-                for(int i = 0; i < routingTable.size(); i++)
+                for(unsigned int i = 0; i < routingTable.size(); i++)
                 {
                     int destPort = routingTable[i][1];
                     if(destPortNumToSkip != destPort)
@@ -246,7 +259,7 @@ void* NodeRecProc(void* arg)
             }
         }
     }
-        return NULL;
+    return NULL;
 }
 
 void StartNodeThread(pthread_t* thread, vector<int>& ports)
@@ -264,7 +277,7 @@ void StartNodeThread(pthread_t* thread, vector<int>& ports)
         sendAddr = new Address("localhost", ports[1]);
         dstAddr =  new Address("localhost", ports[2]); //NEEDS TO GO and edit common.cpp line 380 to get rid of assertion
 
-        
+
         recvPort = new LossyReceivingPort(0.0);
         recvPort->setAddress(recvAddr);
 
@@ -297,32 +310,26 @@ int main(int argc, char* argv[])
     //sender 4000
     //receiver localhost 4001 
 
-    //CreateConnectionsList(argc, argv);
+    CreateConnectionsList(argc, argv);
 
     int N = 2;
 
     pthread_t threads[N];
 
-    vector<int> ports;
+    /*  vector<int> ports;
 
-    ports.push_back(10000);
-    ports.push_back(11001);
-    ports.push_back(4000);
+        ports.push_back(10000);
+        ports.push_back(11001);
+        ports.push_back(4000);
 
-    connectionsList.push_back(ports);
+        connectionsList.push_back(ports);
 
-    cout<<connectionsList[0].size()<<endl;
+        ports[0] = 11000;
+        ports[1] = 10001 ;
+        ports[2] = 4001;
 
-     for(unsigned int i = 0; i < connectionsList[0].size(); i++)
-        cout<<connectionsList[0][i]<<endl;
-  
-
-    ports[0] = 11000;
-    ports[1] = 10001 ;
-    ports[2] = 4001;
-
-    connectionsList.push_back(ports);
-
+        connectionsList.push_back(ports);
+     */
     for(int i = 0; i < N; i++)
     {
         StartNodeThread(&(threads[i]), connectionsList[i]);
